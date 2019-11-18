@@ -71,8 +71,7 @@ bool handle_index(http::session_t &session, arg_t &arg) {
 bool handle_other(http::session_t &session, arg_t &arg) {
     boost::asio::condition_flag flag(session);
     session.spawn([&session, &flag, &arg](boost::asio::yield_context yield){
-        using namespace std;
-        ostream &ss=session.response().body_stream();
+        std::ostream &ss=session.response().body_stream();
         ss << "<HTML>\r\n<TITLE>" << session.request().path() << "</TITLE><BODY>\r\n";
         ss << "<H1>" << session.request().path() << "</H1><HR/>\r\n";
         ss << "<H1>Changing session argument from " << arg << " to " << arg+2 << "</H1><HR/>\r\n";
@@ -99,13 +98,15 @@ bool handle_other(http::session_t &session, arg_t &arg) {
 
 // Test client connection
 bool handle_proxy(http::session_t &session) {
-    http::headers_t::const_iterator i=http::find_header(session.request().headers(), "host");
+    http::headers_t::iterator i=http::find_header(session.request().headers(), "host");
     if (i==session.request().headers().end()) {
         session.response().code(http::BAD_REQUEST);
         return false;
     }
+    i->second = "services.arcgisonline.com";
+    // session.request().host("services.arcgisonline.com");
     session.raw(true);
-    net::async_tcp_stream s(session.yield_context(), i->second, "80");
+    net::async_tcp_stream s(session.yield_context(), "services.arcgisonline.com:80", "80");
     s << session.request();
     s >> session.response();
     session.raw_stream() << session.response();
@@ -118,23 +119,7 @@ int main(int argc, const char *argv[]) {
     try {
         http::protocol_handler<> hproxy;
         hproxy.set_request_handler(&handle_proxy);
-        
-        http::protocol_handler<arg_t> handler;
-        handler.set_default_argument(42);
-        handler.set_open_handler([](http::session_t &session, arg_t &arg)->bool{
-            session.read_timeout(5);
-            session.write_timeout(5);
-            session.max_keepalive(3);
-            return true;
-        });
-        handler.set_request_handler(http::router<arg_t>({
-            {http::url_equals("/"), &handle_alt_index},
-            {http::url_equals("/index.html"), &handle_index},
-            {http::url_starts_with("/index") && http::url_ends_with(".htm"), &handle_alt_index},
-            {http::url_equals("/favicon.ico"), &handle_not_found},
-            {http::any(), &handle_other},
-        }));
-        net::server s({{"[0::0]:20000", handler}, {"[0::0]:20001", hproxy}, {"[0::0]:30000", &calculator::protocol_handler}},
+        net::server s({ {"[0::0]:20000", hproxy}},
                  [](boost::asio::io_service &)->bool { return true; },
                  [](boost::asio::io_service &){},
                  num_threads);

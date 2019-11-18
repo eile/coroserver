@@ -120,7 +120,22 @@ namespace http {
         }
         return headers.end();
     }
-    
+
+    inline headers_t::iterator find_header(headers_t &headers, const std::string &key, bool case_sensitive=false) {
+        for (headers_t::iterator i=headers.begin(); i!=headers.end(); ++i) {
+            if (case_sensitive) {
+                if (boost::algorithm::equals(i->first, key)) {
+                    return i;
+                }
+            } else {
+                if (boost::algorithm::iequals(i->first, key)) {
+                    return i;
+                }
+            }
+        }
+        return headers.end();
+    }
+
     struct request_t {
         /**
          * Clear request

@@ -41,7 +41,7 @@ namespace net {
             for (const sap_desc_t &sd : sap_desc_list)
                 listen(sd);
             
-            // Accept incomint connections
+            // Accept incoming connections
             open();
         }
     }
