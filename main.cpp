@@ -8,6 +8,10 @@
 
 #include <functional>
 #include <iostream>
+
+#include <turbojpeg.h>
+#include "basis_universal/basisu_comp.h"
+
 #include "server.h"
 #include "http_protocol.h"
 #include "routing.h"
@@ -96,6 +100,45 @@ bool handle_other(http::session_t &session, arg_t &arg) {
     return true;
 }
 
+std::string decode_jpeg(const std::string& body){
+    void* decoder = tjInitDecompress();
+    std::string out;
+    out.resize(256 * 256 * 4);
+    if(tjDecompress(decoder, (unsigned char*)body.data(), body.size(),
+                   (unsigned char*)out.data(), 256, 256 * 4, 256, 4, TJPF_RGBA) != 0) {
+        tjDestroy(decoder);
+        return std::string();
+    }
+
+    tjDestroy(decoder);
+    return out;
+}
+
+std::string encode_basis(const std::string& pixels){
+    basist::etc1_global_selector_codebook sel_codebook(basist::g_global_selector_cb_size, basist::g_global_selector_cb);
+    basisu::job_pool jpool(1);//std::thread::hardware_concurrency());
+
+    basisu::basis_compressor_params params;
+ 	params.m_pJob_pool = &jpool;
+	params.m_read_source_images = false;
+	params.m_write_output_basis_files = false;
+    params.m_check_for_alpha = false;
+	params.m_pSel_codebook = &sel_codebook;
+
+    basisu::image image(256, 256);
+    ::memcpy(image.get_ptr(), pixels.data(), pixels.size());
+
+    params.m_source_images.push_back(image);
+
+    basisu::basis_compressor compressor;
+
+    if (!compressor.init(params) || compressor.process() != basisu::basis_compressor::cECSuccess){
+        return std::string();
+    }
+
+    return std::string((char*)compressor.get_output_basis_file().data(), compressor.get_output_basis_file().size());
+}
+
 // Test client connection
 bool handle_proxy(http::session_t &session) {
     http::headers_t::iterator i=http::find_header(session.request().headers(), "host");
@@ -104,11 +147,32 @@ bool handle_proxy(http::session_t &session) {
         return false;
     }
     i->second = "services.arcgisonline.com";
-    // session.request().host("services.arcgisonline.com");
     session.raw(true);
     net::async_tcp_stream s(session.yield_context(), "services.arcgisonline.com:80", "80");
     s << session.request();
     s >> session.response();
+
+    // Transcode jpg -> basis
+    const std::string pixels = decode_jpeg(session.response().body());
+    if(pixels.empty()){
+        session.raw_stream() << session.response();
+        session.raw_stream().flush();
+        return true;
+    }
+
+    std::string basis = encode_basis(pixels);
+    if(basis.empty()) {
+        session.response().code(http::SERVICE_UNAVAILABLE);
+        return false;
+    }
+
+    // prepare and send result
+    i = http::find_header(session.response().headers(), "content-length");
+    i->second = std::to_string(basis.size());
+    i = http::find_header(session.response().headers(), "content-type");
+    i->second = "image/basisu";
+    session.response().body_stream().swap_vector(basis);
+
     session.raw_stream() << session.response();
     session.raw_stream().flush();
     return true;

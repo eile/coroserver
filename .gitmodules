@@ -1,3 +1,6 @@
 [submodule "http-parser"]
 	path = http-parser
 	url = https://github.com/joyent/http-parser.git
+[submodule "basis_universal"]
+	path = basis_universal
+	url = https://github.com/eile/basis_universal.git
