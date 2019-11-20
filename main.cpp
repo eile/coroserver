@@ -124,6 +124,7 @@ std::string encode_basis(const std::string& pixels){
 	params.m_write_output_basis_files = false;
     params.m_check_for_alpha = false;
 	params.m_pSel_codebook = &sel_codebook;
+    params.m_mip_gen = true;
 
     basisu::image image(256, 256);
     ::memcpy(image.get_ptr(), pixels.data(), pixels.size());
