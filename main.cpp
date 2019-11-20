@@ -116,7 +116,7 @@ std::string decode_jpeg(const std::string& body){
 
 std::string encode_basis(const std::string& pixels){
     basist::etc1_global_selector_codebook sel_codebook(basist::g_global_selector_cb_size, basist::g_global_selector_cb);
-    basisu::job_pool jpool(1);//std::thread::hardware_concurrency());
+    basisu::job_pool jpool(std::thread::hardware_concurrency());
 
     basisu::basis_compressor_params params;
  	params.m_pJob_pool = &jpool;
@@ -179,7 +179,7 @@ bool handle_proxy(http::session_t &session) {
 }
 
 int main(int argc, const char *argv[]) {
-    std::size_t num_threads = 3;
+    const std::size_t num_threads = std::thread::hardware_concurrency();
     try {
         http::protocol_handler<> hproxy;
         hproxy.set_request_handler(&handle_proxy);

@@ -12,13 +12,13 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(libturbojpeg libturbojpeg REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS} ${libturbojpeg_INCLUDE_DIRS})
+add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 
 add_subdirectory(basis_universal)
 
 file(GLOB SOURCE_LIST "*.cpp" "http-parser/http_parser.c")
 
 add_executable(coroserver ${SOURCE_LIST})
-add_definitions(coroserver -DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 target_link_libraries(coroserver
                       ${Boost_LIBRARIES}
                       ${libturbojpeg_LIBRARIES}
