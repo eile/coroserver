@@ -105,7 +105,7 @@ std::string decode_jpeg(const std::string& body){
     std::string out;
     out.resize(256 * 256 * 4);
     if(tjDecompress(decoder, (unsigned char*)body.data(), body.size(),
-                   (unsigned char*)out.data(), 256, 256 * 4, 256, 4, TJPF_RGBA) != 0) {
+                   (unsigned char*)out.data(), 256, 256 * 4, 256, 4, TJPF_BGRA | TJXOP_VFLIP) != 0) {
         tjDestroy(decoder);
         return std::string();
     }
